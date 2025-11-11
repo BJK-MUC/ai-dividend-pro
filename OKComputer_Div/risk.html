@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Management - Dividend Investing System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-navy: #1a2332;
+            --secondary-charcoal: #2d3748;
+            --accent-copper: #b7791f;
+            --success-green: #2d5a3d;
+            --warning-amber: #d69e2e;
+            --error-burgundy: #c53030;
+            --bg-off-white: #fafafa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-charcoal) 100%);
+            min-height: 100vh;
+            color: #fafafa;
+        }
+
+        .glass-nav {
+            background: rgba(26, 35, 50, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(183, 121, 31, 0.2);
+        }
+
+        .risk-metric-card {
+            background: rgba(45, 55, 72, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(183, 121, 31, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .risk-metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(183, 121, 31, 0.2);
+            border-color: var(--accent-copper);
+        }
+
+        .chart-container {
+            background: rgba(45, 55, 72, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(183, 121, 31, 0.1);
+        }
+
+        .alert-item {
+            background: rgba(45, 55, 72, 0.8);
+            border-left: 4px solid var(--accent-copper);
+            transition: all 0.3s ease;
+        }
+
+        .alert-item:hover {
+            background: rgba(45, 55, 72, 0.9);
+            transform: translateX(5px);
+        }
+
+        .alert-high { border-left-color: var(--error-burgundy); }
+        .alert-medium { border-left-color: var(--warning-amber); }
+        .alert-low { border-left-color: var(--success-green); }
+
+        .scenario-card {
+            background: rgba(45, 55, 72, 0.6);
+            border: 1px solid rgba(183, 121, 31, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .scenario-card:hover {
+            border-color: var(--accent-copper);
+            box-shadow: 0 5px 15px rgba(183, 121, 31, 0.2);
+        }
+
+        .scenario-card.active {
+            border-color: var(--accent-copper);
+            background: rgba(183, 121, 31, 0.1);
+        }
+
+        .correlation-cell {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .correlation-cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .text-copper-400 { color: var(--accent-copper); }
+        .bg-copper-400 { background-color: var(--accent-copper); }
+        .border-copper-400 { border-color: var(--accent-copper); }
+
+        .gradient-text {
+            background: linear-gradient(135deg, var(--accent-copper), var(--success-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .pulse-red {
+            animation: pulseRed 2s infinite;
+        }
+
+        @keyframes pulseRed {
+            0%, 100% { background-color: var(--error-burgundy); }
+            50% { background-color: rgba(197, 48, 48, 0.6); }
+        }
+
+        .pulse-yellow {
+            animation: pulseYellow 2s infinite;
+        }
+
+        @keyframes pulseYellow {
+            0%, 100% { background-color: var(--warning-amber); }
+            50% { background-color: rgba(214, 158, 46, 0.6); }
+        }
+
+        .pulse-green {
+            animation: pulseGreen 2s infinite;
+        }
+
+        @keyframes pulseGreen {
+            0%, 100% { background-color: var(--success-green); }
+            50% { background-color: rgba(45, 90, 61, 0.6); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #p5-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <!-- P5.js Background Animation -->
+    <div id="p5-background"></div>
+
+    <!-- Navigation -->
+    <nav class="glass-nav fixed w-full top-0 z-50 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="text-2xl font-bold gradient-text">AI Dividend Pro</div>
+                <div class="hidden md:flex items-center space-x-2 text-sm">
+                    <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span>Markets Open</span>
+                    <span class="text-copper-400">•</span>
+                    <span id="current-time"></span>
+                </div>
+            </div>
+            <div class="flex items-center space-x-6">
+                <a href="index.html" class="text-gray-300 hover:text-copper-400 transition-colors">Dashboard</a>
+                <a href="screener.html" class="text-gray-300 hover:text-copper-400 transition-colors">Screener</a>
+                <a href="optimizer.html" class="text-gray-300 hover:text-copper-400 transition-colors">Optimizer</a>
+                <a href="risk.html" class="text-copper-400 font-medium border-b-2 border-copper-400 pb-1">Risk</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="pt-24 pb-12">
+        <div class="max-w-7xl mx-auto px-6">
+            <!-- Header -->
+            <div class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold mb-4 gradient-text">Risk Management</h1>
+                <p class="text-xl text-gray-300 max-w-3xl mx-auto">Comprehensive risk monitoring and analysis for dividend investment portfolios</p>
+            </div>
+
+            <!-- Risk Status Banner -->
+            <div class="bg-gray-800 bg-opacity-50 rounded-xl p-6 mb-8 backdrop-filter backdrop-blur-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-bold mb-2">Portfolio Risk Status</h3>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 rounded-full pulse-green"></div>
+                                <span class="text-sm">Low Risk: 8 positions</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 rounded-full pulse-yellow"></div>
+                                <span class="text-sm">Medium Risk: 2 positions</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-3 h-3 rounded-full pulse-red"></div>
+                                <span class="text-sm">High Risk: 0 positions</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hidden md:block text-4xl">🛡️</div>
+                </div>
+            </div>
+
+            <!-- Key Risk Metrics -->
+            <section class="mb-12">
+                <h2 class="text-3xl font-bold mb-6 text-copper-400">Risk Metrics Overview</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="risk-metric-card rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-medium text-gray-400">Value at Risk (95%)</h3>
+                            <div class="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
+                                <span class="text-white font-bold text-xs">VaR</span>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold text-red-400" id="var-95">-$12,450</div>
+                        <div class="text-sm text-gray-400 mt-1">Daily loss potential</div>
+                    </div>
+
+                    <div class="risk-metric-card rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-medium text-gray-400">Maximum Drawdown</h3>
+                            <div class="w-8 h-8 bg-amber-600 rounded-lg flex items-center justify-center">
+                                <span class="text-white font-bold text-xs">MDD</span>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold text-amber-400" id="max-drawdown">-8.2%</div>
+                        <div class="text-sm text-gray-400 mt-1">Peak to trough</div>
+                    </div>
+
+                    <div class="risk-metric-card rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-medium text-gray-400">Portfolio Beta</h3>
+                            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                                <span class="text-white font-bold text-xs">β</span>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold text-blue-400" id="portfolio-beta">0.78</div>
+                        <div class="text-sm text-gray-400 mt-1">Market sensitivity</div>
+                    </div>
+
+                    <div class="risk-metric-card rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-medium text-gray-400">Diversification Ratio</h3>
+                            <div class="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+                                <span class="text-white font-bold text-xs">DR</span>
+                            </div>
+                        </div>
+                        <div class="text-3xl font-bold text-green-400" id="diversification-ratio">0.85</div>
+                        <div class="text-sm text-gray-400 mt-1">Risk reduction</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="mb-12">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Risk Decomposition -->
+                    <div class="chart-container rounded-xl p-6">
+                        <h3 class="text-xl font-bold text-copper-400 mb-6">Risk Decomposition</h3>
+                        <div id="risk-decomposition-chart" style="height: 350px;"></div>
+                    </div>
+
+                    <!-- Correlation Heatmap -->
+                    <div class="chart-container rounded-xl p-6">
+                        <h3 class="text-xl font-bold text-copper-400 mb-6">Correlation Matrix</h3>
+                        <div id="correlation-heatmap" style="height: 350px;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Risk Alerts -->
+            <section class="mb-12">
+                <h3 class="text-2xl font-bold text-copper-400 mb-6">Risk Alerts & Notifications</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Active Alerts -->
+                    <div class="chart-container rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h4 class="text-lg font-bold text-copper-400">Active Alerts</h4>
+                            <button id="clear-alerts" class="text-sm text-gray-400 hover:text-copper-400 transition-colors">
+                                Clear All
+                            </button>
+                        </div>
+                        <div class="space-y-3" id="alerts-list">
+                            <div class="alert-item alert-medium rounded-lg p-4">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="font-bold text-amber-400">High Dividend Payout Ratio</div>
+                                        <div class="text-sm text-gray-300">CLX payout ratio exceeded 70% threshold</div>
+                                        <div class="text-xs text-gray-400 mt-1">2 hours ago</div>
+                                    </div>
+                                    <div class="w-2 h-2 bg-amber-400 rounded-full"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert-item alert-low rounded-lg p-4">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="font-bold text-green-400">Portfolio Rebalancing Suggested</div>
+                                        <div class="text-sm text-gray-300">Healthcare allocation above target</div>
+                                        <div class="text-xs text-gray-400 mt-1">1 day ago</div>
+                                    </div>
+                                    <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert-item alert-medium rounded-lg p-4">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="font-bold text-amber-400">High Correlation Detected</div>
+                                        <div class="text-sm text-gray-300">BDX and MDT correlation above 0.85</div>
+                                        <div class="text-xs text-gray-400 mt-1">3 days ago</div>
+                                    </div>
+                                    <div class="w-2 h-2 bg-amber-400 rounded-full"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alert Configuration -->
+                    <div class="chart-container rounded-xl p-6">
+                        <h4 class="text-lg font-bold text-copper-400 mb-6">Alert Configuration</h4>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">VaR Threshold (%)</label>
+                                <input type="range" id="var-threshold" class="w-full" min="1" max="10" value="5" step="0.5">
+                                <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                    <span>1%</span>
+                                    <span id="var-threshold-value">5%</span>
+                                    <span>10%</span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">Beta Threshold</label>
+                                <input type="range" id="beta-threshold" class="w-full" min="0.5" max="2.0" value="1.2" step="0.1">
+                                <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                    <span>0.5</span>
+                                    <span id="beta-threshold-value">1.2</span>
+                                    <span>2.0</span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">Correlation Threshold</label>
+                                <input type="range" id="correlation-threshold" class="w-full" min="0.6" max="0.95" value="0.85" step="0.05">
+                                <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                    <span>0.6</span>
+                                    <span id="correlation-threshold-value">0.85</span>
+                                    <span>0.95</span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">Dividend Payout Threshold (%)</label>
+                                <input type="range" id="payout-threshold" class="w-full" min="60" max="90" value="75" step="5">
+                                <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                    <span>60%</span>
+                                    <span id="payout-threshold-value">75%</span>
+                                    <span>90%</span>
+                                </div>
+                            </div>
+                            
+                            <button id="save-alert-config" class="w-full bg-copper-400 hover:bg-amber-500 text-primary-navy font-bold py-2 px-4 rounded-lg transition-colors">
+                                Save Configuration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Stress Testing -->
+            <section class="mb-12">
+                <h3 class="text-2xl font-bold text-copper-400 mb-6">Stress Testing & Scenarios</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="scenario-card rounded-xl p-6" data-scenario="market-crash">
+                        <div class="text-center">
+                            <div class="text-4xl mb-4">📉</div>
+                            <h4 class="text-lg font-bold mb-2">Market Crash</h4>
+                            <p class="text-sm text-gray-400">2008-style financial crisis</p>
+                        </div>
+                    </div>
+                    
+                    <div class="scenario-card rounded-xl p-6" data-scenario="interest-rate">
+                        <div class="text-center">
+                            <div class="text-4xl mb-4">📈</div>
+                            <h4 class="text-lg font-bold mb-2">Rate Shock</h4>
+                            <p class="text-sm text-gray-400">Sudden interest rate spike</p>
+                        </div>
+                    </div>
+                    
+                    <div class="scenario-card rounded-xl p-6" data-scenario="inflation">
+                        <div class="text-center">
+                            <div class="text-4xl mb-4">💰</div>
+                            <h4 class="text-lg font-bold mb-2">Inflation Surge</h4>
+                            <p class="text-sm text-gray-400">High inflation environment</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stress Test Results -->
+                <div class="chart-container rounded-xl p-6" id="stress-test-results" style="display: none;">
+                    <h4 class="text-xl font-bold text-copper-400 mb-6">Stress Test Results</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-red-400 mb-2" id="stress-loss">-0.00%</div>
+                            <div class="text-sm text-gray-400">Expected Loss</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-amber-400 mb-2" id="stress-recovery">0 days</div>
+                            <div class="text-sm text-gray-400">Recovery Time</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-blue-400 mb-2" id="stress-dividend">0.00%</div>
+                            <div class="text-sm text-gray-400">Dividend Impact</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-green-400 mb-2" id="stress-survival">0%</div>
+                            <div class="text-sm text-gray-400">Survival Probability</div>
+                        </div>
+                    </div>
+                    <div id="stress-test-chart" style="height: 300px;"></div>
+                </div>
+            </section>
+
+            <!-- Monte Carlo Simulation -->
+            <section class="mb-12">
+                <div class="chart-container rounded-xl p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-copper-400">Monte Carlo Simulation</h3>
+                        <div class="flex space-x-3">
+                            <button id="run-simulation" class="bg-copper-400 hover:bg-amber-500 text-primary-navy font-bold py-2 px-4 rounded-lg transition-colors">
+                                Run Simulation
+                            </button>
+                            <button id="export-results" class="bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded-lg transition-colors">
+                                Export Results
+                            </button>
+                        </div>
+                    </div>
+                    <div id="monte-carlo-chart" style="height: 400px;"></div>
+                    <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-green-400 mb-1" id="mc-median">$0</div>
+                            <div class="text-sm text-gray-400">Median Outcome</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-blue-400 mb-1" id="mc-95th">$0</div>
+                            <div class="text-sm text-gray-400">95th Percentile</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-red-400 mb-1" id="mc-5th">$0</div>
+                            <div class="text-sm text-gray-400">5th Percentile</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-lg font-bold text-copper-400 mb-1" id="mc-success">0%</div>
+                            <div class="text-sm text-gray-400">Success Rate</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-primary-navy border-t border-gray-700 py-8">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <div class="text-copper-400 font-bold mb-2">AI Dividend Pro</div>
+            <div class="text-gray-400 text-sm">© 2024 Advanced AI Dividend Investing System. Professional financial technology for sophisticated investors.</div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+    <script>
+        class RiskManagementSystem {
+            constructor() {
+                this.charts = {};
+                this.alertConfig = {
+                    varThreshold: 5,
+                    betaThreshold: 1.2,
+                    correlationThreshold: 0.85,
+                    payoutThreshold: 75
+                };
+                this.init();
+            }
+
+            init() {
+                this.initializeCharts();
+                this.setupEventListeners();
+                this.initializeAnimations();
+                this.initializeP5Background();
+                this.startRealTimeUpdates();
+            }
+
+            initializeCharts() {
+                this.initRiskDecompositionChart();
+                this.initCorrelationHeatmap();
+                this.initMonteCarloChart();
+            }
+
+            initRiskDecompositionChart() {
+                const chartDom = document.getElementById('risk-decomposition-chart');
+                if (!chartDom) return;
+
+                const myChart = echarts.init(chartDom);
+                
+                const data = [
+                    { name: 'Market Risk', value: 45 },
+                    { name: 'Sector Risk', value: 25 },
+                    { name: 'Interest Rate Risk', value: 15 },
+                    { name: 'Inflation Risk', value: 10 },
+                    { name: 'Currency Risk', value: 5 }
+                ];
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: '#1a2332',
+                        borderColor: '#b7791f',
+                        textStyle: { color: '#fafafa' }
+                    },
+                    series: [{
+                        name: 'Risk Sources',
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        data: data,
+                        emphasis: {
+                            itemStyle: {
+                                shadowBlur: 10,
+                                shadowOffsetX: 0,
+                                shadowColor: 'rgba(0, 0, 0, 0.5)'
+                            }
+                        },
+                        color: ['#b7791f', '#2d5a3d', '#d69e2e', '#c53030', '#2d3748']
+                    }]
+                };
+
+                myChart.setOption(option);
+                this.charts.riskDecomposition = myChart;
+            }
+
+            initCorrelationHeatmap() {
+                const chartDom = document.getElementById('correlation-heatmap');
+                if (!chartDom) return;
+
+                const myChart = echarts.init(chartDom);
+                
+                const symbols = ['BDX', 'CLX', 'BF.B', 'AMCR', 'FDS', 'APD', 'HRL', 'MDT'];
+                const correlationData = [];
+
+                // Generate correlation matrix
+                for (let i = 0; i < symbols.length; i++) {
+                    for (let j = 0; j < symbols.length; j++) {
+                        let value;
+                        if (i === j) {
+                            value = 1.0;
+                        } else {
+                            // Generate realistic correlation values
+                            value = Math.random() * 0.8 + 0.1;
+                            if (Math.random() > 0.7) value = Math.random() * 0.3 + 0.6; // Higher correlation for similar sectors
+                        }
+                        correlationData.push([i, j, value]);
+                    }
+                }
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        position: 'top',
+                        backgroundColor: '#1a2332',
+                        borderColor: '#b7791f',
+                        textStyle: { color: '#fafafa' },
+                        formatter: function (params) {
+                            return `${symbols[params.data[0]]} - ${symbols[params.data[1]]}<br/>Correlation: ${params.data[2].toFixed(2)}`;
+                        }
+                    },
+                    grid: {
+                        height: '80%',
+                        top: '10%'
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: symbols,
+                        splitArea: {
+                            show: true
+                        },
+                        axisLabel: { color: '#fafafa' }
+                    },
+                    yAxis: {
+                        type: 'category',
+                        data: symbols,
+                        splitArea: {
+                            show: true
+                        },
+                        axisLabel: { color: '#fafafa' }
+                    },
+                    visualMap: {
+                        min: 0,
+                        max: 1,
+                        calculable: true,
+                        orient: 'horizontal',
+                        left: 'center',
+                        bottom: '5%',
+                        inRange: {
+                            color: ['#2d3748', '#b7791f', '#2d5a3d']
+                        },
+                        textStyle: { color: '#fafafa' }
+                    },
+                    series: [{
+                        name: 'Correlation',
+                        type: 'heatmap',
+                        data: correlationData,
+                        label: {
+                            show: true,
+                            color: '#fafafa',
+                            formatter: function (params) {
+                                return params.data[2].toFixed(2);
+                            }
+                        },
+                        emphasis: {
+                            itemStyle: {
+                                shadowBlur: 10,
+                                shadowColor: 'rgba(0, 0, 0, 0.5)'
+                            }
+                        }
+                    }]
+                };
+
+                myChart.setOption(option);
+                this.charts.correlationHeatmap = myChart;
+            }
+
+            initMonteCarloChart() {
+                const chartDom = document.getElementById('monte-carlo-chart');
+                if (!chartDom) return;
+
+                const myChart = echarts.init(chartDom);
+                
+                // Generate sample Monte Carlo paths
+                const paths = this.generateMonteCarloPaths();
+                const percentiles = this.calculatePercentiles(paths);
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: '#1a2332',
+                        borderColor: '#b7791f',
+                        textStyle: { color: '#fafafa' }
+                    },
+                    legend: {
+                        data: ['Median', '95th Percentile', '5th Percentile', 'Sample Paths'],
+                        textStyle: { color: '#fafafa' }
+                    },
+                    grid: {
+                        left: '3%', right: '4%', bottom: '3%', containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: Array.from({length: 252}, (_, i) => `Day ${i + 1}`),
+                        axisLine: { lineStyle: { color: '#2d3748' } },
+                        axisLabel: { color: '#fafafa' }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'Portfolio Value ($)',
+                        nameTextStyle: { color: '#fafafa' },
+                        axisLine: { lineStyle: { color: '#2d3748' } },
+                        axisLabel: { color: '#fafafa' },
+                        splitLine: { lineStyle: { color: '#2d3748' } }
+                    },
+                    series: [
+                        {
+                            name: '5th Percentile',
+                            type: 'line',
+                            data: percentiles.p5,
+                            lineStyle: { color: '#c53030', width: 2 },
+                            itemStyle: { color: '#c53030' },
+                            areaStyle: { color: 'rgba(197, 48, 48, 0.1)' }
+                        },
+                        {
+                            name: 'Median',
+                            type: 'line',
+                            data: percentiles.median,
+                            lineStyle: { color: '#b7791f', width: 3 },
+                            itemStyle: { color: '#b7791f' }
+                        },
+                        {
+                            name: '95th Percentile',
+                            type: 'line',
+                            data: percentiles.p95,
+                            lineStyle: { color: '#2d5a3d', width: 2 },
+                            itemStyle: { color: '#2d5a3d' },
+                            areaStyle: { color: 'rgba(45, 90, 61, 0.1)' }
+                        }
+                    ]
+                };
+
+                // Add sample paths
+                for (let i = 0; i < 10; i++) {
+                    option.series.push({
+                        name: `Path ${i + 1}`,
+                        type: 'line',
+                        data: paths[i],
+                        lineStyle: { color: `rgba(183, 121, 31, ${0.3 - i * 0.02})`, width: 1 },
+                        symbol: 'none',
+                        silent: true
+                    });
+                }
+
+                myChart.setOption(option);
+                this.charts.monteCarlo = myChart;
+            }
+
+            generateMonteCarloPaths() {
+                const paths = [];
+                const initialValue = 100000;
+                const days = 252;
+                const numPaths = 100;
+
+                for (let p = 0; p < numPaths; p++) {
+                    const path = [initialValue];
+                    let currentValue = initialValue;
+                    
+                    for (let d = 1; d < days; d++) {
+                        const dailyReturn = (Math.random() - 0.5) * 0.04 + 0.0008; // ±4% daily, 0.08% average
+                        currentValue *= (1 + dailyReturn);
+                        path.push(currentValue);
+                    }
+                    paths.push(path);
+                }
+                
+                return paths;
+            }
+
+            calculatePercentiles(paths) {
+                const days = paths[0].length;
+                const p5 = [], median = [], p95 = [];
+                
+                for (let d = 0; d < days; d++) {
+                    const dayValues = paths.map(path => path[d]).sort((a, b) => a - b);
+                    p5.push(dayValues[Math.floor(dayValues.length * 0.05)]);
+                    median.push(dayValues[Math.floor(dayValues.length * 0.5)]);
+                    p95.push(dayValues[Math.floor(dayValues.length * 0.95)]);
+                }
+                
+                return { p5, median, p95 };
+            }
+
+            setupEventListeners() {
+                // Alert configuration sliders
+                ['var-threshold', 'beta-threshold', 'correlation-threshold', 'payout-threshold'].forEach(id => {
+                    const slider = document.getElementById(id);
+                    const valueDisplay = document.getElementById(id + '-value');
+                    
+                    slider.addEventListener('input', (e) => {
+                        valueDisplay.textContent = e.target.value + (id.includes('threshold') ? '%' : '');
+                        this.alertConfig[id.replace('-', '')] = parseFloat(e.target.value);
+                    });
+                });
+
+                // Clear alerts
+                document.getElementById('clear-alerts').addEventListener('click', () => {
+                    this.clearAlerts();
+                });
+
+                // Save alert configuration
+                document.getElementById('save-alert-config').addEventListener('click', () => {
+                    this.saveAlertConfig();
+                });
+
+                // Stress test scenarios
+                document.querySelectorAll('.scenario-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        this.runStressTest(card.dataset.scenario);
+                        document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('active'));
+                        card.classList.add('active');
+                    });
+                });
+
+                // Monte Carlo simulation
+                document.getElementById('run-simulation').addEventListener('click', () => {
+                    this.runMonteCarloSimulation();
+                });
+
+                document.getElementById('export-results').addEventListener('click', () => {
+                    this.exportSimulationResults();
+                });
+            }
+
+            runStressTest(scenario) {
+                const scenarios = {
+                    'market-crash': {
+                        loss: -35.2,
+                        recovery: 180,
+                        dividendImpact: -15.3,
+                        survival: 78
+                    },
+                    'interest-rate': {
+                        loss: -18.7,
+                        recovery: 90,
+                        dividendImpact: -8.2,
+                        survival: 89
+                    },
+                    'inflation': {
+                        loss: -22.4,
+                        recovery: 120,
+                        dividendImpact: -12.1,
+                        survival: 85
+                    }
+                };
+
+                const results = scenarios[scenario];
+                if (!results) return;
+
+                document.getElementById('stress-loss').textContent = `${results.loss}%`;
+                document.getElementById('stress-recovery').textContent = `${results.recovery} days`;
+                document.getElementById('stress-dividend').textContent = `${results.dividendImpact}%`;
+                document.getElementById('stress-survival').textContent = `${results.survival}%`;
+
+                document.getElementById('stress-test-results').style.display = 'block';
+                
+                // Initialize stress test chart
+                this.initStressTestChart(results);
+                
+                anime({
+                    targets: '#stress-test-results',
+                    opacity: [0, 1],
+                    translateY: [50, 0],
+                    duration: 800,
+                    easing: 'easeOutQuart'
+                });
+            }
+
+            initStressTestChart(results) {
+                const chartDom = document.getElementById('stress-test-chart');
+                if (!chartDom) return;
+
+                const myChart = echarts.init(chartDom);
+                
+                // Generate recovery timeline
+                const timeline = [];
+                const initialLoss = results.loss;
+                const recoveryDays = results.recovery;
+                
+                for (let i = 0; i <= recoveryDays; i++) {
+                    const recoveryProgress = i / recoveryDays;
+                    const currentValue = initialLoss * (1 - recoveryProgress) * (1 + Math.sin(i * 0.1) * 0.1);
+                    timeline.push([`Day ${i}`, currentValue]);
+                }
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: '#1a2332',
+                        borderColor: '#b7791f',
+                        textStyle: { color: '#fafafa' }
+                    },
+                    grid: {
+                        left: '3%', right: '4%', bottom: '3%', containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        axisLine: { lineStyle: { color: '#2d3748' } },
+                        axisLabel: { color: '#fafafa' }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'Portfolio Return (%)',
+                        nameTextStyle: { color: '#fafafa' },
+                        axisLine: { lineStyle: { color: '#2d3748' } },
+                        axisLabel: { color: '#fafafa' },
+                        splitLine: { lineStyle: { color: '#2d3748' } }
+                    },
+                    series: [{
+                        name: 'Recovery Path',
+                        type: 'line',
+                        data: timeline,
+                        lineStyle: { color: '#b7791f', width: 3 },
+                        itemStyle: { color: '#b7791f' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(183, 121, 31, 0.3)' },
+                                { offset: 1, color: 'rgba(183, 121, 31, 0.1)' }
+                            ])
+                        }
+                    }]
+                };
+
+                myChart.setOption(option);
+            }
+
+            runMonteCarloSimulation() {
+                this.showNotification('Running Monte Carlo simulation...', 'info');
+                
+                setTimeout(() => {
+                    const paths = this.generateMonteCarloPaths();
+                    const percentiles = this.calculatePercentiles(paths);
+                    
+                    // Update statistics
+                    const initialValue = 100000;
+                    document.getElementById('mc-median').textContent = `$${Math.round(percentiles.median[251]).toLocaleString()}`;
+                    document.getElementById('mc-95th').textContent = `$${Math.round(percentiles.p95[251]).toLocaleString()}`;
+                    document.getElementById('mc-5th').textContent = `$${Math.round(percentiles.p5[251]).toLocaleString()}`;
+                    
+                    const successRate = (percentiles.p5[251] / initialValue) * 100;
+                    document.getElementById('mc-success').textContent = `${successRate.toFixed(1)}%`;
+                    
+                    // Update chart
+                    this.initMonteCarloChart();
+                    
+                    this.showNotification('Monte Carlo simulation completed', 'success');
+                }, 2000);
+            }
+
+            exportSimulationResults() {
+                const results = {
+                    timestamp: new Date().toISOString(),
+                    riskMetrics: {
+                        var95: document.getElementById('var-95').textContent,
+                        maxDrawdown: document.getElementById('max-drawdown').textContent,
+                        portfolioBeta: document.getElementById('portfolio-beta').textContent,
+                        diversificationRatio: document.getElementById('diversification-ratio').textContent
+                    },
+                    monteCarlo: {
+                        median: document.getElementById('mc-median').textContent,
+                        percentile95: document.getElementById('mc-95th').textContent,
+                        percentile5: document.getElementById('mc-5th').textContent,
+                        successRate: document.getElementById('mc-success').textContent
+                    }
+                };
+
+                const dataStr = JSON.stringify(results, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'risk-analysis-results.json';
+                link.click();
+                
+                URL.revokeObjectURL(url);
+                this.showNotification('Results exported successfully', 'success');
+            }
+
+            clearAlerts() {
+                const alertsList = document.getElementById('alerts-list');
+                alertsList.innerHTML = '<div class="text-center text-gray-400 py-8">No active alerts</div>';
+                this.showNotification('All alerts cleared', 'info');
+            }
+
+            saveAlertConfig() {
+                localStorage.setItem('riskAlertConfig', JSON.stringify(this.alertConfig));
+                this.showNotification('Alert configuration saved', 'success');
+            }
+
+            loadAlertConfig() {
+                const saved = localStorage.getItem('riskAlertConfig');
+                if (saved) {
+                    this.alertConfig = JSON.parse(saved);
+                    // Update UI to reflect loaded config
+                    document.getElementById('var-threshold').value = this.alertConfig.varthreshold;
+                    document.getElementById('beta-threshold').value = this.alertConfig.betathreshold;
+                    document.getElementById('correlation-threshold').value = this.alertConfig.correlationthreshold;
+                    document.getElementById('payout-threshold').value = this.alertConfig.payoutthreshold;
+                }
+            }
+
+            initializeP5Background() {
+                new p5((p) => {
+                    let particles = [];
+                    
+                    p.setup = () => {
+                        const canvas = p.createCanvas(p.windowWidth, p.windowHeight);
+                        canvas.parent('p5-background');
+                        
+                        // Create particles
+                        for (let i = 0; i < 50; i++) {
+                            particles.push({
+                                x: p.random(p.width),
+                                y: p.random(p.height),
+                                vx: p.random(-1, 1),
+                                vy: p.random(-1, 1),
+                                size: p.random(2, 6),
+                                opacity: p.random(0.1, 0.3)
+                            });
+                        }
+                    };
+                    
+                    p.draw = () => {
+                        p.clear();
+                        
+                        // Update and draw particles
+                        particles.forEach(particle => {
+                            particle.x += particle.vx;
+                            particle.y += particle.vy;
+                            
+                            // Wrap around edges
+                            if (particle.x < 0) particle.x = p.width;
+                            if (particle.x > p.width) particle.x = 0;
+                            if (particle.y < 0) particle.y = p.height;
+                            if (particle.y > p.height) particle.y = 0;
+                            
+                            // Draw particle
+                            p.fill(183, 121, 31, particle.opacity * 255);
+                            p.noStroke();
+                            p.circle(particle.x, particle.y, particle.size);
+                        });
+                    };
+                    
+                    p.windowResized = () => {
+                        p.resizeCanvas(p.windowWidth, p.windowHeight);
+                    };
+                });
+            }
+
+            startRealTimeUpdates() {
+                setInterval(() => {
+                    this.updateRiskMetrics();
+                }, 30000); // Update every 30 seconds
+            }
+
+            updateRiskMetrics() {
+                // Simulate real-time metric updates
+                const varElement = document.getElementById('var-95');
+                const currentVar = parseInt(varElement.textContent.replace(/[$,]/g, ''));
+                const newVar = currentVar + (Math.random() - 0.5) * 2000;
+                varElement.textContent = `-$${Math.round(Math.abs(newVar)).toLocaleString()}`;
+
+                // Update other metrics with small random changes
+                const metrics = ['max-drawdown', 'portfolio-beta', 'diversification-ratio'];
+                metrics.forEach(id => {
+                    const element = document.getElementById(id);
+                    const currentValue = parseFloat(element.textContent);
+                    const change = (Math.random() - 0.5) * 0.1;
+                    element.textContent = (currentValue + change).toFixed(2) + (id === 'max-drawdown' ? '%' : '');
+                });
+            }
+
+            initializeAnimations() {
+                anime({
+                    targets: '.risk-metric-card',
+                    translateY: [50, 0],
+                    opacity: [0, 1],
+                    delay: anime.stagger(100),
+                    duration: 800,
+                    easing: 'easeOutQuart'
+                });
+
+                anime({
+                    targets: '.chart-container',
+                    scale: [0.95, 1],
+                    opacity: [0, 1],
+                    delay: anime.stagger(200, {start: 400}),
+                    duration: 1000,
+                    easing: 'easeOutQuart'
+                });
+            }
+
+            showNotification(message, type) {
+                const notification = document.createElement('div');
+                notification.className = `fixed top-24 right-6 p-4 rounded-lg text-white z-50 ${
+                    type === 'success' ? 'bg-green-600' : 
+                    type === 'warning' ? 'bg-amber-600' : 
+                    type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+                }`;
+                notification.textContent = message;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.remove();
+                }, 3000);
+            }
+        }
+
+        // Initialize risk management system
+        const riskSystem = new RiskManagementSystem();
+
+        // Update current time
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            const timeElement = document.getElementById('current-time');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>
