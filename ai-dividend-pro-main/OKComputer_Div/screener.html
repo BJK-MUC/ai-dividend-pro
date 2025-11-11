@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Stock Screener - Dividend Investing System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/typed.js/2.0.12/typed.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-navy: #1a2332;
+            --secondary-charcoal: #2d3748;
+            --accent-copper: #b7791f;
+            --success-green: #2d5a3d;
+            --warning-amber: #d69e2e;
+            --error-burgundy: #c53030;
+            --bg-off-white: #fafafa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-charcoal) 100%);
+            min-height: 100vh;
+            color: #fafafa;
+        }
+
+        .glass-nav {
+            background: rgba(26, 35, 50, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(183, 121, 31, 0.2);
+        }
+
+        .filter-panel {
+            background: rgba(45, 55, 72, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(183, 121, 31, 0.2);
+        }
+
+        .results-panel {
+            background: rgba(45, 55, 72, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(183, 121, 31, 0.1);
+        }
+
+        .stock-card {
+            background: rgba(45, 55, 72, 0.6);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(183, 121, 31, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .stock-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(183, 121, 31, 0.2);
+            border-color: var(--accent-copper);
+        }
+
+        .filter-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: rgba(183, 121, 31, 0.3);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .filter-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--accent-copper);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .filter-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--accent-copper);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .search-input {
+            background: rgba(45, 55, 72, 0.8);
+            border: 1px solid rgba(183, 121, 31, 0.3);
+            color: #fafafa;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-copper);
+            box-shadow: 0 0 0 3px rgba(183, 121, 31, 0.1);
+        }
+
+        .ai-insight-text {
+            background: linear-gradient(135deg, var(--accent-copper), var(--success-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .recommendation-buy { background: rgba(45, 90, 61, 0.3); border-left: 4px solid var(--success-green); }
+        .recommendation-hold { background: rgba(214, 158, 46, 0.3); border-left: 4px solid var(--warning-amber); }
+        .recommendation-sell { background: rgba(197, 48, 48, 0.3); border-left: 4px solid var(--error-burgundy); }
+
+        .text-copper-400 { color: var(--accent-copper); }
+        .bg-copper-400 { background-color: var(--accent-copper); }
+        .border-copper-400 { border-color: var(--accent-copper); }
+
+        .gradient-text {
+            background: linear-gradient(135deg, var(--accent-copper), var(--success-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .loading-skeleton {
+            background: linear-gradient(90deg, rgba(183, 121, 31, 0.1) 25%, rgba(183, 121, 31, 0.2) 50%, rgba(183, 121, 31, 0.1) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="glass-nav fixed w-full top-0 z-50 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="text-2xl font-bold gradient-text">AI Dividend Pro</div>
+                <div class="hidden md:flex items-center space-x-2 text-sm">
+                    <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span>Markets Open</span>
+                    <span class="text-copper-400">•</span>
+                    <span id="current-time"></span>
+                </div>
+            </div>
+            <div class="flex items-center space-x-6">
+                <a href="index.html" class="text-gray-300 hover:text-copper-400 transition-colors">Dashboard</a>
+                <a href="screener.html" class="text-copper-400 font-medium border-b-2 border-copper-400 pb-1">Screener</a>
+                <a href="optimizer.html" class="text-gray-300 hover:text-copper-400 transition-colors">Optimizer</a>
+                <a href="risk.html" class="text-gray-300 hover:text-copper-400 transition-colors">Risk</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="pt-24 pb-12">
+        <div class="max-w-7xl mx-auto px-6">
+            <!-- Header -->
+            <div class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold mb-4 gradient-text">AI Stock Screener</h1>
+                <p class="text-xl text-gray-300 max-w-3xl mx-auto">Discover high-quality dividend stocks with advanced AI-powered screening and analysis</p>
+            </div>
+
+            <!-- AI Insight Banner -->
+            <div class="bg-gradient-to-r from-copper-400 to-amber-500 text-primary-navy rounded-xl p-6 mb-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-bold mb-2">AI Market Analysis</h3>
+                        <p class="text-lg" id="ai-insight-text"></p>
+                    </div>
+                    <div class="hidden md:block text-4xl">🤖</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <!-- Filter Panel -->
+                <div class="lg:col-span-1">
+                    <div class="filter-panel rounded-xl p-6 sticky top-28">
+                        <h3 class="text-xl font-bold text-copper-400 mb-6">Advanced Filters</h3>
+                        
+                        <!-- Search -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Search Stocks</label>
+                            <input type="text" id="stock-search" placeholder="Symbol or Company Name" 
+                                   class="search-input w-full px-4 py-2 rounded-lg focus:outline-none">
+                        </div>
+
+                        <!-- Dividend Yield -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                                Dividend Yield: <span id="yield-value" class="text-copper-400">2% - 8%</span>
+                            </label>
+                            <div class="px-2">
+                                <input type="range" id="yield-min" class="filter-slider w-full mb-2" 
+                                       min="0" max="10" step="0.1" value="2">
+                                <input type="range" id="yield-max" class="filter-slider w-full" 
+                                       min="0" max="10" step="0.1" value="8">
+                            </div>
+                        </div>
+
+                        <!-- Payout Ratio -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                                Payout Ratio: <span id="payout-value" class="text-copper-400">30% - 70%</span>
+                            </label>
+                            <div class="px-2">
+                                <input type="range" id="payout-min" class="filter-slider w-full mb-2" 
+                                       min="0" max="100" step="1" value="30">
+                                <input type="range" id="payout-max" class="filter-slider w-full" 
+                                       min="0" max="100" step="1" value="70">
+                            </div>
+                        </div>
+
+                        <!-- Market Cap -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Market Cap</label>
+                            <select id="market-cap" class="search-input w-full px-4 py-2 rounded-lg focus:outline-none">
+                                <option value="">All Sizes</option>
+                                <option value="large">Large Cap ($10B+)</option>
+                                <option value="mid">Mid Cap ($2B - $10B)</option>
+                                <option value="small">Small Cap (<$2B)</option>
+                            </select>
+                        </div>
+
+                        <!-- Sectors -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Sectors</label>
+                            <div class="space-y-2 max-h-32 overflow-y-auto">
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="sector-filter mr-2" value="Healthcare" checked>
+                                    <span class="text-sm">Healthcare</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="sector-filter mr-2" value="Consumer Defensive" checked>
+                                    <span class="text-sm">Consumer Defensive</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="sector-filter mr-2" value="Financial Services" checked>
+                                    <span class="text-sm">Financial Services</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="sector-filter mr-2" value="Basic Materials" checked>
+                                    <span class="text-sm">Basic Materials</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="sector-filter mr-2" value="Consumer Cyclical" checked>
+                                    <span class="text-sm">Consumer Cyclical</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="sector-filter mr-2" value="Energy" checked>
+                                    <span class="text-sm">Energy</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="sector-filter mr-2" value="Technology" checked>
+                                    <span class="text-sm">Technology</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Region Filter -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Region</label>
+                            <select id="region-filter" class="search-input w-full px-4 py-2 rounded-lg focus:outline-none">
+                                <option value="">All Regions</option>
+                                <option value="North America">North America</option>
+                                <option value="Europe">Europe</option>
+                                <option value="Asia">Asia</option>
+                                <option value="Oceania">Oceania</option>
+                            </select>
+                        </div>
+
+                        <!-- Country Filter -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Country</label>
+                            <select id="country-filter" class="search-input w-full px-4 py-2 rounded-lg focus:outline-none">
+                                <option value="">All Countries</option>
+                                <option value="USA">United States</option>
+                                <option value="Canada">Canada</option>
+                                <option value="United Kingdom">United Kingdom</option>
+                                <option value="Germany">Germany</option>
+                                <option value="France">France</option>
+                                <option value="Japan">Japan</option>
+                                <option value="Australia">Australia</option>
+                                <option value="China">China</option>
+                                <option value="South Korea">South Korea</option>
+                            </select>
+                        </div>
+
+                        <!-- AI Recommendations -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">AI Rating</label>
+                            <select id="ai-rating" class="search-input w-full px-4 py-2 rounded-lg focus:outline-none">
+                                <option value="">All Ratings</option>
+                                <option value="buy">Buy Only</option>
+                                <option value="hold">Hold Only</option>
+                                <option value="sell">Sell Only</option>
+                            </select>
+                        </div>
+
+                        <button id="clear-filters" class="w-full bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded-lg transition-colors">
+                            Clear All Filters
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results Panel -->
+                <div class="lg:col-span-3">
+                    <div class="results-panel rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-copper-400">Screening Results</h3>
+                            <div class="flex items-center space-x-4">
+                                <span class="text-sm text-gray-400">Found <span id="results-count" class="text-copper-400 font-bold">0</span> stocks</span>
+                                <select id="sort-by" class="search-input px-3 py-1 rounded-lg text-sm focus:outline-none">
+                                    <option value="yield">Sort by Yield</option>
+                                    <option value="market-cap">Sort by Market Cap</option>
+                                    <option value="pe-ratio">Sort by P/E Ratio</option>
+                                    <option value="ai-confidence">Sort by AI Confidence</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div id="loading-state" class="hidden">
+                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                <div class="loading-skeleton h-48 rounded-xl"></div>
+                                <div class="loading-skeleton h-48 rounded-xl"></div>
+                                <div class="loading-skeleton h-48 rounded-xl"></div>
+                            </div>
+                        </div>
+
+                        <!-- Results Grid -->
+                        <div id="results-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            <!-- Results populated by JavaScript -->
+                        </div>
+
+                        <!-- No Results -->
+                        <div id="no-results" class="hidden text-center py-12">
+                            <div class="text-6xl mb-4">🔍</div>
+                            <h3 class="text-xl font-bold text-gray-300 mb-2">No stocks found</h3>
+                            <p class="text-gray-400">Try adjusting your filters to see more results</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Stock Detail Modal -->
+    <div id="stock-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-secondary-charcoal rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-600">
+                <div class="flex items-center justify-between">
+                    <h3 id="modal-title" class="text-2xl font-bold text-copper-400"></h3>
+                    <button id="close-modal" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+            </div>
+            <div id="modal-content" class="p-6">
+                <!-- Content populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-primary-navy border-t border-gray-700 py-8">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <div class="text-copper-400 font-bold mb-2">AI Dividend Pro</div>
+            <div class="text-gray-400 text-sm">© 2024 Advanced AI Dividend Investing System. Professional financial technology for sophisticated investors.</div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+    <script>
+        class StockScreener {
+            constructor() {
+                this.allStocks = this.generateStockData();
+                this.filteredStocks = [...this.allStocks];
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.initializeAIInsight();
+                this.renderResults();
+                this.initializeAnimations();
+            }
+
+            generateStockData() {
+                // Use the global stock database from the main system
+                if (window.dividendSystem && window.dividendSystem.globalStockDatabase) {
+                    return window.dividendSystem.globalStockDatabase;
+                }
+                
+                // Fallback to basic stock data if main system not loaded
+                return [
+                    { symbol: 'BDX', name: 'Becton Dickinson', country: 'USA', region: 'North America', sector: 'Healthcare', dividendYield: 2.24, payoutRatio: 45, marketCap: 68.5, peRatio: 25.3, aiRating: 'buy', confidence: 92, price: 239.00, change: 1.2 },
+                    { symbol: 'CLX', name: 'Clorox Company', country: 'USA', region: 'North America', sector: 'Consumer Defensive', dividendYield: 4.28, payoutRatio: 62, marketCap: 20.8, peRatio: 28.1, aiRating: 'hold', confidence: 78, price: 166.20, change: -0.8 },
+                    { symbol: 'BF.B', name: 'Brown-Forman', country: 'USA', region: 'North America', sector: 'Consumer Defensive', dividendYield: 3.24, payoutRatio: 58, marketCap: 13.2, peRatio: 22.4, aiRating: 'buy', confidence: 85, price: 28.00, change: 2.1 },
+                    { symbol: 'AMCR', name: 'Amcor PLC', country: 'USA', region: 'North America', sector: 'Consumer Cyclical', dividendYield: 6.27, payoutRatio: 71, marketCap: 12.1, peRatio: 18.9, aiRating: 'hold', confidence: 73, price: 8.21, change: -1.5 },
+                    { symbol: 'FDS', name: 'FactSet Research', country: 'USA', region: 'North America', sector: 'Financial Services', dividendYield: 1.54, payoutRatio: 28, marketCap: 10.9, peRatio: 31.2, aiRating: 'buy', confidence: 88, price: 284.90, change: 3.2 }
+                ];
+            }
+
+            initializeAIInsight() {
+                const insights = [
+                    "Market analysis indicates strong dividend growth potential in healthcare sector with 3.2% average yield expansion expected.",
+                    "AI models predict consumer defensive stocks will outperform with 87% confidence based on economic indicators.",
+                    "Energy sector showing attractive entry points with dividend sustainability scores above 85% across major players.",
+                    "Financial services dividend aristocrats demonstrating resilience with average 4.1% yield and strong balance sheets.",
+                    "Technology dividend payers offering growth-income combination with 15% average dividend growth rate."
+                ];
+
+                const randomInsight = insights[Math.floor(Math.random() * insights.length)];
+                
+                new Typed('#ai-insight-text', {
+                    strings: [randomInsight],
+                    typeSpeed: 30,
+                    showCursor: false,
+                    onComplete: () => {
+                        document.getElementById('ai-insight-text').classList.add('ai-insight-text');
+                    }
+                });
+            }
+
+            setupEventListeners() {
+                // Search input
+                document.getElementById('stock-search').addEventListener('input', (e) => {
+                    this.filterStocks();
+                });
+
+                // Filter sliders
+                const sliders = ['yield-min', 'yield-max', 'payout-min', 'payout-max'];
+                sliders.forEach(sliderId => {
+                    document.getElementById(sliderId).addEventListener('input', () => {
+                        this.updateSliderLabels();
+                        this.filterStocks();
+                    });
+                });
+
+                // Select filters
+                ['market-cap', 'region-filter', 'country-filter', 'ai-rating', 'sort-by'].forEach(id => {
+                    document.getElementById(id).addEventListener('change', () => {
+                        this.filterStocks();
+                    });
+                });
+
+                // Sector filters
+                document.querySelectorAll('.sector-filter').forEach(checkbox => {
+                    checkbox.addEventListener('change', () => {
+                        this.filterStocks();
+                    });
+                });
+
+                // Clear filters
+                document.getElementById('clear-filters').addEventListener('click', () => {
+                    this.clearFilters();
+                });
+
+                // Modal close
+                document.getElementById('close-modal').addEventListener('click', () => {
+                    this.closeModal();
+                });
+
+                // Click outside modal to close
+                document.getElementById('stock-modal').addEventListener('click', (e) => {
+                    if (e.target.id === 'stock-modal') {
+                        this.closeModal();
+                    }
+                });
+            }
+
+            updateSliderLabels() {
+                const yieldMin = document.getElementById('yield-min').value;
+                const yieldMax = document.getElementById('yield-max').value;
+                const payoutMin = document.getElementById('payout-min').value;
+                const payoutMax = document.getElementById('payout-max').value;
+
+                document.getElementById('yield-value').textContent = `${yieldMin}% - ${yieldMax}%`;
+                document.getElementById('payout-value').textContent = `${payoutMin}% - ${payoutMax}%`;
+            }
+
+            filterStocks() {
+                this.showLoading();
+                
+                setTimeout(() => {
+                    const searchTerm = document.getElementById('stock-search').value.toLowerCase();
+                    const yieldMin = parseFloat(document.getElementById('yield-min').value);
+                    const yieldMax = parseFloat(document.getElementById('yield-max').value);
+                    const payoutMin = parseFloat(document.getElementById('payout-min').value);
+                    const payoutMax = parseFloat(document.getElementById('payout-max').value);
+                    const marketCap = document.getElementById('market-cap').value;
+                    const region = document.getElementById('region-filter').value;
+                    const country = document.getElementById('country-filter').value;
+                    const aiRating = document.getElementById('ai-rating').value;
+                    const sortBy = document.getElementById('sort-by').value;
+
+                    const selectedSectors = Array.from(document.querySelectorAll('.sector-filter:checked'))
+                        .map(cb => cb.value);
+
+                    this.filteredStocks = this.allStocks.filter(stock => {
+                        const matchesSearch = stock.symbol.toLowerCase().includes(searchTerm) || 
+                                            stock.name.toLowerCase().includes(searchTerm);
+                        const matchesYield = stock.dividendYield >= yieldMin && stock.dividendYield <= yieldMax;
+                        const matchesPayout = stock.payoutRatio >= payoutMin && stock.payoutRatio <= payoutMax;
+                        const matchesSector = selectedSectors.length === 0 || selectedSectors.includes(stock.sector);
+                        const matchesMarketCap = !marketCap || this.matchesMarketCap(stock.marketCap, marketCap);
+                        const matchesRegion = !region || stock.region === region;
+                        const matchesCountry = !country || stock.country === country;
+                        const matchesRating = !aiRating || stock.aiRating === aiRating;
+
+                        return matchesSearch && matchesYield && matchesPayout && matchesSector && 
+                               matchesMarketCap && matchesRegion && matchesCountry && matchesRating;
+                    });
+
+                    this.sortStocks(sortBy);
+                    this.renderResults();
+                    this.hideLoading();
+                }, 500);
+            }
+
+            matchesMarketCap(marketCap, filter) {
+                switch(filter) {
+                    case 'large': return marketCap >= 10;
+                    case 'mid': return marketCap >= 2 && marketCap < 10;
+                    case 'small': return marketCap < 2;
+                    default: return true;
+                }
+            }
+
+            sortStocks(sortBy) {
+                switch(sortBy) {
+                    case 'yield':
+                        this.filteredStocks.sort((a, b) => b.dividendYield - a.dividendYield);
+                        break;
+                    case 'market-cap':
+                        this.filteredStocks.sort((a, b) => b.marketCap - a.marketCap);
+                        break;
+                    case 'pe-ratio':
+                        this.filteredStocks.sort((a, b) => a.peRatio - b.peRatio);
+                        break;
+                    case 'ai-confidence':
+                        this.filteredStocks.sort((a, b) => b.confidence - a.confidence);
+                        break;
+                }
+            }
+
+            showLoading() {
+                document.getElementById('loading-state').classList.remove('hidden');
+                document.getElementById('results-grid').classList.add('hidden');
+                document.getElementById('no-results').classList.add('hidden');
+            }
+
+            hideLoading() {
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('results-grid').classList.remove('hidden');
+            }
+
+            renderResults() {
+                const grid = document.getElementById('results-grid');
+                const countElement = document.getElementById('results-count');
+                const noResults = document.getElementById('no-results');
+
+                countElement.textContent = this.filteredStocks.length;
+
+                if (this.filteredStocks.length === 0) {
+                    grid.classList.add('hidden');
+                    noResults.classList.remove('hidden');
+                    return;
+                }
+
+                noResults.classList.add('hidden');
+                grid.classList.remove('hidden');
+
+                grid.innerHTML = '';
+
+                this.filteredStocks.forEach((stock, index) => {
+                    const card = this.createStockCard(stock);
+                    card.classList.add('fade-in');
+                    card.style.animationDelay = `${index * 0.1}s`;
+                    grid.appendChild(card);
+                });
+            }
+
+            createStockCard(stock) {
+                const card = document.createElement('div');
+                const recommendationClass = `recommendation-${stock.aiRating}`;
+                
+                card.className = `stock-card rounded-xl p-6 cursor-pointer ${recommendationClass}`;
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <div class="text-xl font-bold text-copper-400">${stock.symbol}</div>
+                            <div class="text-sm text-gray-400">${stock.name}</div>
+                            <div class="text-xs text-gray-500">${stock.country} • ${stock.region}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-bold">$${stock.price.toFixed(2)}</div>
+                            <div class="text-sm ${stock.change >= 0 ? 'text-green-400' : 'text-red-400'}">
+                                ${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(1)}%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <div class="text-xs text-gray-400">Dividend Yield</div>
+                            <div class="text-lg font-bold text-green-400">${stock.dividendYield.toFixed(2)}%</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-400">Payout Ratio</div>
+                            <div class="text-lg font-bold">${stock.payoutRatio}%</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-400">P/E Ratio</div>
+                            <div class="text-lg font-bold">${stock.peRatio.toFixed(1)}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-400">Market Cap</div>
+                            <div class="text-lg font-bold">$${stock.marketCap.toFixed(1)}B</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="text-xs text-gray-400">AI Rating</div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-3 h-3 rounded-full ${this.getRatingColor(stock.aiRating)}"></div>
+                            <span class="text-sm font-medium capitalize">${stock.aiRating}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-400">AI Confidence</span>
+                            <span class="text-sm font-bold">${stock.confidence}%</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-2">
+                            <div class="bg-copper-400 h-2 rounded-full" style="width: ${stock.confidence}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex space-x-2">
+                        <button class="flex-1 bg-copper-400 hover:bg-amber-500 text-primary-navy font-medium py-2 px-4 rounded-lg transition-colors"
+                                onclick="window.location.href='optimizer.html'">
+                            Add to Portfolio
+                        </button>
+                        <button class="bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded-lg transition-colors"
+                                onclick="screener.showStockDetails('${stock.symbol}')">
+                            View Details
+                        </button>
+                    </div>
+                `;
+
+                return card;
+            }
+
+            getRatingColor(rating) {
+                switch(rating) {
+                    case 'buy': return 'bg-green-400';
+                    case 'hold': return 'bg-amber-400';
+                    case 'sell': return 'bg-red-400';
+                    default: return 'bg-gray-400';
+                }
+            }
+
+            showStockDetails(symbol) {
+                const stock = this.allStocks.find(s => s.symbol === symbol);
+                if (!stock) return;
+
+                document.getElementById('modal-title').textContent = `${stock.symbol} - ${stock.name}`;
+                
+                const modalContent = document.getElementById('modal-content');
+                modalContent.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-lg font-bold text-copper-400 mb-4">Financial Metrics</h4>
+                            <div class="space-y-3">
+                                <div class="flex justify-between">
+                                    <span>Current Price:</span>
+                                    <span class="font-bold">$${stock.price.toFixed(2)}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Dividend Yield:</span>
+                                    <span class="font-bold text-green-400">${stock.dividendYield.toFixed(2)}%</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Payout Ratio:</span>
+                                    <span class="font-bold">${stock.payoutRatio}%</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>P/E Ratio:</span>
+                                    <span class="font-bold">${stock.peRatio.toFixed(1)}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Market Cap:</span>
+                                    <span class="font-bold">$${stock.marketCap.toFixed(1)}B</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Sector:</span>
+                                    <span class="font-bold">${stock.sector}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-bold text-copper-400 mb-4">AI Analysis</h4>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span>AI Rating:</span>
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-3 h-3 rounded-full ${this.getRatingColor(stock.aiRating)}"></div>
+                                            <span class="font-bold capitalize">${stock.aiRating}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span>Confidence:</span>
+                                        <span class="font-bold">${stock.confidence}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-700 rounded-full h-3">
+                                        <div class="bg-copper-400 h-3 rounded-full" style="width: ${stock.confidence}%"></div>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-700 p-4 rounded-lg">
+                                    <h5 class="font-bold mb-2">AI Insight</h5>
+                                    <p class="text-sm text-gray-300">${this.generateAIInsight(stock)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-6 flex space-x-4">
+                        <button class="bg-copper-400 hover:bg-amber-500 text-primary-navy font-bold py-3 px-6 rounded-lg transition-colors"
+                                onclick="window.location.href='optimizer.html'">
+                            Add to Portfolio
+                        </button>
+                        <button class="bg-gray-600 hover:bg-gray-500 text-white py-3 px-6 rounded-lg transition-colors"
+                                onclick="alert('Watchlist feature coming soon!')">
+                            Add to Watchlist
+                        </button>
+                    </div>
+                `;
+
+                document.getElementById('stock-modal').classList.remove('hidden');
+            }
+
+            generateAIInsight(stock) {
+                const insights = {
+                    'buy': [
+                        `Strong dividend growth history with sustainable payout ratio. ${stock.sector} sector showing positive momentum.`,
+                        `Attractive valuation with ${stock.dividendYield.toFixed(2)}% yield and strong balance sheet fundamentals.`,
+                        `Technical indicators suggest favorable entry point with 85% probability of dividend increase in next quarter.`
+                    ],
+                    'hold': [
+                        `Stable dividend performer with moderate growth prospects. Current valuation appears fair.`,
+                        `Solid fundamentals but limited upside potential. Consider holding current position.`,
+                        `Market conditions suggest maintaining position while monitoring for better opportunities.`
+                    ],
+                    'sell': [
+                        `Dividend sustainability concerns given high payout ratio and sector headwinds.`,
+                        `Valuation appears stretched with limited dividend growth potential in current environment.`,
+                        `Technical analysis suggests potential dividend cut risk with 72% probability.`
+                    ]
+                };
+
+                const stockInsights = insights[stock.aiRating] || insights['hold'];
+                return stockInsights[Math.floor(Math.random() * stockInsights.length)];
+            }
+
+            closeModal() {
+                document.getElementById('stock-modal').classList.add('hidden');
+            }
+
+            clearFilters() {
+                document.getElementById('stock-search').value = '';
+                document.getElementById('yield-min').value = 2;
+                document.getElementById('yield-max').value = 8;
+                document.getElementById('payout-min').value = 30;
+                document.getElementById('payout-max').value = 70;
+                document.getElementById('market-cap').value = '';
+                document.getElementById('region-filter').value = '';
+                document.getElementById('country-filter').value = '';
+                document.getElementById('ai-rating').value = '';
+                
+                document.querySelectorAll('.sector-filter').forEach(cb => cb.checked = true);
+                
+                this.updateSliderLabels();
+                this.filterStocks();
+            }
+
+            initializeAnimations() {
+                anime({
+                    targets: '.filter-panel',
+                    translateX: [-50, 0],
+                    opacity: [0, 1],
+                    duration: 800,
+                    easing: 'easeOutQuart'
+                });
+
+                anime({
+                    targets: '.results-panel',
+                    translateX: [50, 0],
+                    opacity: [0, 1],
+                    duration: 800,
+                    delay: 200,
+                    easing: 'easeOutQuart'
+                });
+            }
+        }
+
+        // Initialize screener
+        const screener = new StockScreener();
+
+        // Update current time
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            const timeElement = document.getElementById('current-time');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>

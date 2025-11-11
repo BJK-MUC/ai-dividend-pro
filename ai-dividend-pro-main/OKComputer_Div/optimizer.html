@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Optimizer - Dividend Investing System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-navy: #1a2332;
+            --secondary-charcoal: #2d3748;
+            --accent-copper: #b7791f;
+            --success-green: #2d5a3d;
+            --warning-amber: #d69e2e;
+            --error-burgundy: #c53030;
+            --bg-off-white: #fafafa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-charcoal) 100%);
+            min-height: 100vh;
+            color: #fafafa;
+        }
+
+        .glass-nav {
+            background: rgba(26, 35, 50, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(183, 121, 31, 0.2);
+        }
+
+        .stock-pool {
+            background: rgba(45, 55, 72, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(183, 121, 31, 0.2);
+        }
+
+        .portfolio-canvas {
+            background: rgba(45, 55, 72, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(183, 121, 31, 0.1);
+            min-height: 500px;
+        }
+
+        .metrics-panel {
+            background: rgba(45, 55, 72, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(183, 121, 31, 0.2);
+        }
+
+        .stock-item {
+            background: rgba(45, 55, 72, 0.8);
+            border: 1px solid rgba(183, 121, 31, 0.3);
+            cursor: grab;
+            transition: all 0.3s ease;
+        }
+
+        .stock-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(183, 121, 31, 0.2);
+            border-color: var(--accent-copper);
+        }
+
+        .stock-item:active {
+            cursor: grabbing;
+        }
+
+        .portfolio-item {
+            background: rgba(45, 55, 72, 0.9);
+            border: 1px solid rgba(183, 121, 31, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .portfolio-item:hover {
+            border-color: var(--accent-copper);
+            box-shadow: 0 5px 15px rgba(183, 121, 31, 0.2);
+        }
+
+        .weight-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: rgba(183, 121, 31, 0.3);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .weight-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-copper);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .weight-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--accent-copper);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .optimization-result {
+            background: linear-gradient(135deg, rgba(183, 121, 31, 0.1), rgba(45, 90, 61, 0.1));
+            border-left: 4px solid var(--accent-copper);
+        }
+
+        .text-copper-400 { color: var(--accent-copper); }
+        .bg-copper-400 { background-color: var(--accent-copper); }
+        .border-copper-400 { border-color: var(--accent-copper); }
+
+        .gradient-text {
+            background: linear-gradient(135deg, var(--accent-copper), var(--success-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .drag-over {
+            border-color: var(--accent-copper);
+            background: rgba(183, 121, 31, 0.1);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="glass-nav fixed w-full top-0 z-50 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="text-2xl font-bold gradient-text">AI Dividend Pro</div>
+                <div class="hidden md:flex items-center space-x-2 text-sm">
+                    <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span>Markets Open</span>
+                    <span class="text-copper-400">•</span>
+                    <span id="current-time"></span>
+                </div>
+            </div>
+            <div class="flex items-center space-x-6">
+                <a href="index.html" class="text-gray-300 hover:text-copper-400 transition-colors">Dashboard</a>
+                <a href="screener.html" class="text-gray-300 hover:text-copper-400 transition-colors">Screener</a>
+                <a href="optimizer.html" class="text-copper-400 font-medium border-b-2 border-copper-400 pb-1">Optimizer</a>
+                <a href="risk.html" class="text-gray-300 hover:text-copper-400 transition-colors">Risk</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="pt-24 pb-12">
+        <div class="max-w-7xl mx-auto px-6">
+            <!-- Header -->
+            <div class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-bold mb-4 gradient-text">Portfolio Optimizer</h1>
+                <p class="text-xl text-gray-300 max-w-3xl mx-auto">Build optimal dividend portfolios with AI-powered allocation and real-time risk analysis</p>
+            </div>
+
+            <!-- AI Optimization Banner -->
+            <div class="optimization-result rounded-xl p-6 mb-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-bold mb-2">AI Portfolio Optimization</h3>
+                        <p class="text-gray-300">Drag stocks from the pool to build your portfolio. AI will automatically calculate optimal weights and risk metrics.</p>
+                    </div>
+                    <div class="hidden md:block text-4xl">🎯</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <!-- Stock Pool -->
+                <div class="lg:col-span-1">
+                    <div class="stock-pool rounded-xl p-6 sticky top-28">
+                        <h3 class="text-xl font-bold text-copper-400 mb-6">Available Stocks</h3>
+                        <div class="space-y-3" id="stock-pool">
+                            <!-- Stocks populated by JavaScript -->
+                        </div>
+                        <div class="mt-6 pt-6 border-t border-gray-600">
+                            <button id="clear-portfolio" class="w-full bg-red-600 hover:bg-red-500 text-white py-2 px-4 rounded-lg transition-colors mb-3">
+                                Clear Portfolio
+                            </button>
+                            <button id="auto-optimize" class="w-full bg-copper-400 hover:bg-amber-500 text-primary-navy font-bold py-2 px-4 rounded-lg transition-colors">
+                                Auto Optimize
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Portfolio Canvas -->
+                <div class="lg:col-span-2">
+                    <div class="portfolio-canvas rounded-xl p-6">
+                        <h3 class="text-xl font-bold text-copper-400 mb-6">Portfolio Construction</h3>
+                        <div class="mb-6">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm text-gray-400">Total Allocation</span>
+                                <span id="total-allocation" class="text-lg font-bold">0%</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-3">
+                                <div id="allocation-bar" class="bg-copper-400 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div id="portfolio-canvas" class="min-h-[400px] border-2 border-dashed border-gray-600 rounded-lg p-4 transition-all duration-300">
+                            <div class="text-center text-gray-400 mt-20">
+                                <div class="text-4xl mb-4">📊</div>
+                                <p>Drag stocks here to build your portfolio</p>
+                                <p class="text-sm mt-2">AI will optimize weights automatically</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Metrics Panel -->
+                <div class="lg:col-span-1">
+                    <div class="metrics-panel rounded-xl p-6 sticky top-28">
+                        <h3 class="text-xl font-bold text-copper-400 mb-6">Portfolio Metrics</h3>
+                        
+                        <div class="space-y-4 mb-6">
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Expected Return:</span>
+                                <span id="expected-return" class="font-bold text-green-400">0.00%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Dividend Yield:</span>
+                                <span id="portfolio-dividend-yield" class="font-bold text-copper-400">0.00%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Sharpe Ratio:</span>
+                                <span id="portfolio-sharpe" class="font-bold">0.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Beta:</span>
+                                <span id="portfolio-beta" class="font-bold">0.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Volatility:</span>
+                                <span id="portfolio-volatility" class="font-bold">0.00%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-400">Max Drawdown:</span>
+                                <span id="portfolio-drawdown" class="font-bold text-red-400">0.00%</span>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <h4 class="text-lg font-bold text-copper-400 mb-3">Risk Analysis</h4>
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-400">VaR (95%):</span>
+                                    <span id="portfolio-var" class="text-sm font-bold text-red-400">-0.00%</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-400">Diversification:</span>
+                                    <span id="diversification-score" class="text-sm font-bold text-green-400">0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <h4 class="text-lg font-bold text-copper-400 mb-3">AI Optimization Score</h4>
+                            <div class="text-center">
+                                <div class="text-3xl font-bold text-copper-400 mb-2" id="ai-score">0</div>
+                                <div class="w-full bg-gray-700 rounded-full h-3">
+                                    <div id="ai-score-bar" class="bg-gradient-to-r from-copper-400 to-green-400 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-2">Higher score = Better optimization</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <button id="save-portfolio" class="w-full bg-success-green hover:bg-green-600 text-white py-2 px-4 rounded-lg transition-colors">
+                                Save Portfolio
+                            </button>
+                            <button id="load-portfolio" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 px-4 rounded-lg transition-colors">
+                                Load Portfolio
+                            </button>
+                            <button id="export-analysis" class="w-full bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded-lg transition-colors">
+                                Export Analysis
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <section class="mt-12">
+                <h3 class="text-2xl font-bold text-copper-400 mb-6">Portfolio Analysis</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Efficient Frontier Chart -->
+                    <div class="bg-gray-800 bg-opacity-50 rounded-xl p-6 backdrop-filter backdrop-blur-sm">
+                        <h4 class="text-xl font-bold text-copper-400 mb-4">Efficient Frontier</h4>
+                        <div id="efficient-frontier-chart" style="height: 350px;"></div>
+                    </div>
+
+                    <!-- Risk Decomposition -->
+                    <div class="bg-gray-800 bg-opacity-50 rounded-xl p-6 backdrop-filter backdrop-blur-sm">
+                        <h4 class="text-xl font-bold text-copper-400 mb-4">Risk Decomposition</h4>
+                        <div id="risk-decomposition-chart" style="height: 350px;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Optimization Results -->
+            <section class="mt-12" id="optimization-results" style="display: none;">
+                <div class="optimization-result rounded-xl p-6">
+                    <h3 class="text-2xl font-bold text-copper-400 mb-6">Optimization Results</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-green-400 mb-2" id="opt-return">0.00%</div>
+                            <div class="text-gray-400">Optimized Return</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-copper-400 mb-2" id="opt-yield">0.00%</div>
+                            <div class="text-gray-400">Optimized Yield</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-blue-400 mb-2" id="opt-sharpe">0.00</div>
+                            <div class="text-gray-400">Optimized Sharpe</div>
+                        </div>
+                    </div>
+                    <div class="mt-6 text-center">
+                        <button id="apply-optimization" class="bg-copper-400 hover:bg-amber-500 text-primary-navy font-bold py-3 px-8 rounded-lg transition-colors">
+                            Apply Optimization
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-primary-navy border-t border-gray-700 py-8">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <div class="text-copper-400 font-bold mb-2">AI Dividend Pro</div>
+            <div class="text-gray-400 text-sm">© 2024 Advanced AI Dividend Investing System. Professional financial technology for sophisticated investors.</div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+    <script>
+        class PortfolioOptimizer {
+            constructor() {
+                this.availableStocks = this.generateAvailableStocks();
+                this.portfolioStocks = [];
+                this.charts = {};
+                this.init();
+            }
+
+            init() {
+                this.renderStockPool();
+                this.setupEventListeners();
+                this.initializeCharts();
+                this.initializeAnimations();
+                this.setupDragAndDrop();
+            }
+
+            generateAvailableStocks() {
+                // Use the global stock database from the main system
+                if (window.dividendSystem && window.dividendSystem.globalStockDatabase) {
+                    return window.dividendSystem.globalStockDatabase
+                        .filter(stock => stock.confidence >= 75) // Only high-confidence stocks
+                        .slice(0, 25); // Limit to top 25 for performance
+                }
+                
+                // Fallback to basic stock data if main system not loaded
+                return [
+                    { symbol: 'BDX', name: 'Becton Dickinson', country: 'USA', region: 'North America', sector: 'Healthcare', dividendYield: 2.24, price: 239.00, beta: 0.85, marketCap: 68.5 },
+                    { symbol: 'CLX', name: 'Clorox Company', country: 'USA', region: 'North America', sector: 'Consumer Defensive', dividendYield: 4.28, price: 166.20, beta: 0.92, marketCap: 20.8 },
+                    { symbol: 'BF.B', name: 'Brown-Forman', country: 'USA', region: 'North America', sector: 'Consumer Defensive', dividendYield: 3.24, price: 28.00, beta: 0.78, marketCap: 13.2 },
+                    { symbol: 'AMCR', name: 'Amcor PLC', country: 'USA', region: 'North America', sector: 'Consumer Cyclical', dividendYield: 6.27, price: 8.21, beta: 1.12, marketCap: 12.1 },
+                    { symbol: 'FDS', name: 'FactSet Research', country: 'USA', region: 'North America', sector: 'Financial Services', dividendYield: 1.54, price: 284.90, beta: 0.73, marketCap: 10.9 },
+                    { symbol: 'APD', name: 'Air Products & Chemicals', country: 'USA', region: 'North America', sector: 'Basic Materials', dividendYield: 2.81, price: 305.80, beta: 0.89, marketCap: 68.3 },
+                    { symbol: 'HRL', name: 'Hormel Foods', country: 'USA', region: 'North America', sector: 'Consumer Defensive', dividendYield: 4.87, price: 23.76, beta: 0.95, marketCap: 13.1 },
+                    { symbol: 'MDT', name: 'Medtronic PLC', country: 'USA', region: 'North America', sector: 'Healthcare', dividendYield: 3.03, price: 94.08, beta: 0.82, marketCap: 125.2 },
+                    { symbol: 'PPG', name: 'PPG Industries', country: 'USA', region: 'North America', sector: 'Basic Materials', dividendYield: 2.74, price: 103.70, beta: 1.05, marketCap: 24.6 },
+                    { symbol: 'KMB', name: 'Kimberly-Clark', country: 'USA', region: 'North America', sector: 'Consumer Defensive', dividendYield: 4.24, price: 118.80, beta: 0.88, marketCap: 40.3 },
+                    { symbol: 'CVX', name: 'Chevron Corporation', country: 'USA', region: 'North America', sector: 'Energy', dividendYield: 4.40, price: 148.50, beta: 1.15, marketCap: 285.1 },
+                    { symbol: 'TROW', name: 'T. Rowe Price', country: 'USA', region: 'North America', sector: 'Financial Services', dividendYield: 4.98, price: 125.40, beta: 1.02, marketCap: 27.8 },
+                    { symbol: 'MKC', name: 'McCormick & Company', country: 'USA', region: 'North America', sector: 'Consumer Staples', dividendYield: 2.70, price: 72.30, beta: 0.91, marketCap: 19.7 },
+                    { symbol: 'CAH', name: 'Cardinal Health', country: 'USA', region: 'North America', sector: 'Healthcare', dividendYield: 1.30, price: 78.45, beta: 0.76, marketCap: 18.9 },
+                    { symbol: 'GD', name: 'General Dynamics', country: 'USA', region: 'North America', sector: 'Industrials', dividendYield: 1.80, price: 285.60, beta: 0.84, marketCap: 78.2 },
+                    { symbol: 'RIO.L', name: 'Rio Tinto PLC', country: 'United Kingdom', region: 'Europe', sector: 'Basic Materials', dividendYield: 6.80, price: 48.20, beta: 1.18, marketCap: 98.4 },
+                    { symbol: 'BHP.L', name: 'BHP Group PLC', country: 'United Kingdom', region: 'Europe', sector: 'Basic Materials', dividendYield: 5.90, price: 24.80, beta: 1.25, marketCap: 142.6 },
+                    { symbol: 'FMG.AX', name: 'Fortescue Metals Group', country: 'Australia', region: 'Oceania', sector: 'Basic Materials', dividendYield: 8.90, price: 18.40, beta: 1.45, marketCap: 45.2 },
+                    { symbol: 'WDS.AX', name: 'Woodside Energy Ltd', country: 'Australia', region: 'Oceania', sector: 'Energy', dividendYield: 7.20, price: 25.84, beta: 1.35, marketCap: 32.8 },
+                    { symbol: '005930.KS', name: 'Samsung Electronics', country: 'South Korea', region: 'Asia', sector: 'Technology', dividendYield: 2.80, price: 685.00, beta: 1.18, marketCap: 325.8 },
+                    { symbol: '7203.T', name: 'Toyota Motor Corp', country: 'Japan', region: 'Asia', sector: 'Consumer Discretionary', dividendYield: 2.60, price: 285.00, beta: 0.95, marketCap: 285.6 }
+                ];
+            }
+
+            renderStockPool() {
+                const pool = document.getElementById('stock-pool');
+                pool.innerHTML = '';
+
+                this.availableStocks.forEach(stock => {
+                    const stockElement = document.createElement('div');
+                    stockElement.className = 'stock-item rounded-lg p-3 cursor-grab';
+                    stockElement.draggable = true;
+                    stockElement.dataset.symbol = stock.symbol;
+                    
+                    stockElement.innerHTML = `
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="font-bold text-copper-400">${stock.symbol}</div>
+                            <div class="text-sm text-green-400">${stock.dividendYield.toFixed(2)}%</div>
+                        </div>
+                        <div class="text-xs text-gray-400 mb-1">${stock.name}</div>
+                        <div class="text-xs text-gray-500 mb-2">${stock.country} • ${stock.region}</div>
+                        <div class="flex justify-between text-xs">
+                            <span>$${stock.price.toFixed(2)}</span>
+                            <span class="text-gray-400">β ${stock.beta.toFixed(2)}</span>
+                        </div>
+                    `;
+
+                    pool.appendChild(stockElement);
+                });
+            }
+
+            setupDragAndDrop() {
+                const stockPool = document.getElementById('stock-pool');
+                const portfolioCanvas = document.getElementById('portfolio-canvas');
+
+                // Make stock items draggable
+                stockPool.addEventListener('dragstart', (e) => {
+                    if (e.target.classList.contains('stock-item')) {
+                        e.dataTransfer.setData('text/plain', e.target.dataset.symbol);
+                        e.target.style.opacity = '0.5';
+                    }
+                });
+
+                stockPool.addEventListener('dragend', (e) => {
+                    if (e.target.classList.contains('stock-item')) {
+                        e.target.style.opacity = '1';
+                    }
+                });
+
+                // Portfolio canvas drop zone
+                portfolioCanvas.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    portfolioCanvas.classList.add('drag-over');
+                });
+
+                portfolioCanvas.addEventListener('dragleave', (e) => {
+                    if (!portfolioCanvas.contains(e.relatedTarget)) {
+                        portfolioCanvas.classList.remove('drag-over');
+                    }
+                });
+
+                portfolioCanvas.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    portfolioCanvas.classList.remove('drag-over');
+                    
+                    const symbol = e.dataTransfer.getData('text/plain');
+                    this.addStockToPortfolio(symbol);
+                });
+            }
+
+            addStockToPortfolio(symbol) {
+                // Check if stock is already in portfolio
+                if (this.portfolioStocks.find(s => s.symbol === symbol)) {
+                    this.showNotification('Stock already in portfolio', 'warning');
+                    return;
+                }
+
+                const stock = this.availableStocks.find(s => s.symbol === symbol);
+                if (!stock) return;
+
+                const portfolioStock = {
+                    ...stock,
+                    weight: 0,
+                    targetWeight: 10 // Default 10% allocation
+                };
+
+                this.portfolioStocks.push(portfolioStock);
+                this.renderPortfolio();
+                this.updatePortfolioMetrics();
+                this.updateCharts();
+            }
+
+            removeStockFromPortfolio(symbol) {
+                this.portfolioStocks = this.portfolioStocks.filter(s => s.symbol !== symbol);
+                this.renderPortfolio();
+                this.updatePortfolioMetrics();
+                this.updateCharts();
+            }
+
+            updateStockWeight(symbol, weight) {
+                const stock = this.portfolioStocks.find(s => s.symbol === symbol);
+                if (stock) {
+                    stock.targetWeight = parseFloat(weight);
+                    this.normalizeWeights();
+                    this.updatePortfolioMetrics();
+                    this.updateCharts();
+                }
+            }
+
+            normalizeWeights() {
+                const totalWeight = this.portfolioStocks.reduce((sum, stock) => sum + stock.targetWeight, 0);
+                
+                if (totalWeight > 0) {
+                    this.portfolioStocks.forEach(stock => {
+                        stock.weight = (stock.targetWeight / totalWeight) * 100;
+                    });
+                }
+            }
+
+            renderPortfolio() {
+                const canvas = document.getElementById('portfolio-canvas');
+                
+                if (this.portfolioStocks.length === 0) {
+                    canvas.innerHTML = `
+                        <div class="text-center text-gray-400 mt-20">
+                            <div class="text-4xl mb-4">📊</div>
+                            <p>Drag stocks here to build your portfolio</p>
+                            <p class="text-sm mt-2">AI will optimize weights automatically</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                canvas.innerHTML = `
+                    <div class="space-y-3">
+                        ${this.portfolioStocks.map(stock => this.createPortfolioItem(stock)).join('')}
+                    </div>
+                `;
+
+                // Add event listeners for weight sliders
+                this.portfolioStocks.forEach(stock => {
+                    const slider = document.getElementById(`weight-${stock.symbol}`);
+                    if (slider) {
+                        slider.addEventListener('input', (e) => {
+                            this.updateStockWeight(stock.symbol, e.target.value);
+                            document.getElementById(`weight-display-${stock.symbol}`).textContent = `${e.target.value}%`;
+                        });
+                    }
+
+                    const removeBtn = document.getElementById(`remove-${stock.symbol}`);
+                    if (removeBtn) {
+                        removeBtn.addEventListener('click', () => {
+                            this.removeStockFromPortfolio(stock.symbol);
+                        });
+                    }
+                });
+            }
+
+            createPortfolioItem(stock) {
+                return `
+                    <div class="portfolio-item rounded-lg p-4 fade-in">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <div class="font-bold text-copper-400">${stock.symbol}</div>
+                                <div class="text-xs text-gray-400">${stock.name}</div>
+                                <div class="text-xs text-gray-500">${stock.country} • ${stock.region}</div>
+                            </div>
+                            <button id="remove-${stock.symbol}" class="text-red-400 hover:text-red-300 text-xl">×</button>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-3">
+                            <div>
+                                <div class="text-xs text-gray-400">Current Weight</div>
+                                <div class="font-bold text-green-400">${stock.weight.toFixed(1)}%</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-400">Dividend Yield</div>
+                                <div class="font-bold text-copper-400">${stock.dividendYield.toFixed(2)}%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs text-gray-400">Target Weight</span>
+                                <span id="weight-display-${stock.symbol}" class="text-sm font-bold">${stock.targetWeight}%</span>
+                            </div>
+                            <input type="range" id="weight-${stock.symbol}" class="weight-slider w-full" 
+                                   min="1" max="50" value="${stock.targetWeight}" step="1">
+                        </div>
+                        
+                        <div class="w-full bg-gray-700 rounded-full h-2">
+                            <div class="bg-copper-400 h-2 rounded-full transition-all duration-300" 
+                                 style="width: ${stock.weight}%"></div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            updatePortfolioMetrics() {
+                this.normalizeWeights();
+                
+                const totalAllocation = this.portfolioStocks.reduce((sum, stock) => sum + stock.weight, 0);
+                const dividendYield = this.portfolioStocks.reduce((sum, stock) => 
+                    sum + (stock.dividendYield * stock.weight / 100), 0);
+                const portfolioBeta = this.portfolioStocks.reduce((sum, stock) => 
+                    sum + (stock.beta * stock.weight / 100), 0);
+                
+                // Calculate other metrics (simplified)
+                const expectedReturn = dividendYield + 2.5; // Simplified expected return
+                const volatility = Math.sqrt(portfolioBeta) * 15; // Simplified volatility
+                const sharpeRatio = (expectedReturn - 2.0) / (volatility / 100); // Risk-free rate 2%
+                const maxDrawdown = -volatility * 0.6; // Simplified max drawdown
+                const var95 = -volatility * 0.04; // Simplified VaR
+                const diversificationScore = Math.min(this.portfolioStocks.length * 0.2, 1.0);
+
+                // AI Score calculation
+                const aiScore = Math.min(Math.round((sharpeRatio * 20 + dividendYield * 5 + diversificationScore * 30)), 100);
+
+                // Update UI
+                document.getElementById('total-allocation').textContent = `${totalAllocation.toFixed(1)}%`;
+                document.getElementById('allocation-bar').style.width = `${Math.min(totalAllocation, 100)}%`;
+                document.getElementById('expected-return').textContent = `${expectedReturn.toFixed(2)}%`;
+                document.getElementById('portfolio-dividend-yield').textContent = `${dividendYield.toFixed(2)}%`;
+                document.getElementById('portfolio-sharpe').textContent = sharpeRatio.toFixed(2);
+                document.getElementById('portfolio-beta').textContent = portfolioBeta.toFixed(2);
+                document.getElementById('portfolio-volatility').textContent = `${volatility.toFixed(2)}%`;
+                document.getElementById('portfolio-drawdown').textContent = `${maxDrawdown.toFixed(2)}%`;
+                document.getElementById('portfolio-var').textContent = `${var95.toFixed(2)}%`;
+                document.getElementById('diversification-score').textContent = diversificationScore.toFixed(2);
+                document.getElementById('ai-score').textContent = aiScore;
+                document.getElementById('ai-score-bar').style.width = `${aiScore}%`;
+            }
+
+            initializeCharts() {
+                this.initEfficientFrontierChart();
+                this.initRiskDecompositionChart();
+            }
+
+            initEfficientFrontierChart() {
+                const chartDom = document.getElementById('efficient-frontier-chart');
+                if (!chartDom) return;
+
+                const myChart = echarts.init(chartDom);
+                
+                // Generate efficient frontier data
+                const frontierData = [];
+                for (let risk = 5; risk <= 25; risk += 0.5) {
+                    const expectedReturn = 2 + Math.sqrt(risk) * 0.8 + Math.random() * 0.5;
+                    frontierData.push([risk, expectedReturn]);
+                }
+
+                // Current portfolio point
+                const currentRisk = this.portfolioStocks.length > 0 ? 
+                    Math.sqrt(this.portfolioStocks.reduce((sum, stock) => 
+                        sum + (stock.beta * stock.weight / 100), 0)) * 15 : 0;
+                const currentReturn = currentRisk > 0 ? 2 + currentRisk * 0.4 : 0;
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: '#1a2332',
+                        borderColor: '#b7791f',
+                        textStyle: { color: '#fafafa' }
+                    },
+                    grid: {
+                        left: '10%', right: '10%', bottom: '10%', top: '10%'
+                    },
+                    xAxis: {
+                        type: 'value',
+                        name: 'Risk (%)',
+                        nameTextStyle: { color: '#fafafa' },
+                        axisLine: { lineStyle: { color: '#2d3748' } },
+                        axisLabel: { color: '#fafafa' },
+                        splitLine: { lineStyle: { color: '#2d3748' } }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'Return (%)',
+                        nameTextStyle: { color: '#fafafa' },
+                        axisLine: { lineStyle: { color: '#2d3748' } },
+                        axisLabel: { color: '#fafafa' },
+                        splitLine: { lineStyle: { color: '#2d3748' } }
+                    },
+                    series: [
+                        {
+                            name: 'Efficient Frontier',
+                            type: 'line',
+                            data: frontierData,
+                            lineStyle: { color: '#b7791f', width: 2 },
+                            itemStyle: { color: '#b7791f' },
+                            symbol: 'none'
+                        },
+                        {
+                            name: 'Current Portfolio',
+                            type: 'scatter',
+                            data: [[currentRisk, currentReturn]],
+                            symbolSize: 10,
+                            itemStyle: { color: '#2d5a3d' }
+                        }
+                    ]
+                };
+
+                myChart.setOption(option);
+                this.charts.efficientFrontier = myChart;
+            }
+
+            initRiskDecompositionChart() {
+                const chartDom = document.getElementById('risk-decomposition-chart');
+                if (!chartDom) return;
+
+                const myChart = echarts.init(chartDom);
+                
+                const sectorData = this.calculateSectorRisk();
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: '#1a2332',
+                        borderColor: '#b7791f',
+                        textStyle: { color: '#fafafa' }
+                    },
+                    series: [{
+                        name: 'Risk by Sector',
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        data: sectorData,
+                        emphasis: {
+                            itemStyle: {
+                                shadowBlur: 10,
+                                shadowOffsetX: 0,
+                                shadowColor: 'rgba(0, 0, 0, 0.5)'
+                            }
+                        },
+                        color: ['#b7791f', '#2d5a3d', '#d69e2e', '#c53030', '#2d3748']
+                    }]
+                };
+
+                myChart.setOption(option);
+                this.charts.riskDecomposition = myChart;
+            }
+
+            calculateSectorRisk() {
+                const sectorWeights = {};
+                
+                this.portfolioStocks.forEach(stock => {
+                    const sector = stock.sector;
+                    sectorWeights[sector] = (sectorWeights[sector] || 0) + stock.weight;
+                });
+
+                return Object.entries(sectorWeights).map(([sector, weight]) => ({
+                    name: sector,
+                    value: weight
+                }));
+            }
+
+            updateCharts() {
+                this.initEfficientFrontierChart();
+                this.initRiskDecompositionChart();
+            }
+
+            setupEventListeners() {
+                document.getElementById('clear-portfolio').addEventListener('click', () => {
+                    this.clearPortfolio();
+                });
+
+                document.getElementById('auto-optimize').addEventListener('click', () => {
+                    this.autoOptimize();
+                });
+
+                document.getElementById('save-portfolio').addEventListener('click', () => {
+                    this.savePortfolio();
+                });
+
+                document.getElementById('load-portfolio').addEventListener('click', () => {
+                    this.loadPortfolio();
+                });
+
+                document.getElementById('export-analysis').addEventListener('click', () => {
+                    this.exportAnalysis();
+                });
+
+                document.getElementById('apply-optimization').addEventListener('click', () => {
+                    this.applyOptimization();
+                });
+            }
+
+            clearPortfolio() {
+                this.portfolioStocks = [];
+                this.renderPortfolio();
+                this.updatePortfolioMetrics();
+                this.updateCharts();
+                this.hideOptimizationResults();
+            }
+
+            autoOptimize() {
+                if (this.portfolioStocks.length === 0) {
+                    this.showNotification('Add stocks to portfolio first', 'warning');
+                    return;
+                }
+
+                this.showNotification('AI optimization in progress...', 'info');
+                
+                // Simulate AI optimization
+                setTimeout(() => {
+                    this.optimizePortfolioWeights();
+                    this.showOptimizationResults();
+                    this.showNotification('Portfolio optimized successfully!', 'success');
+                }, 2000);
+            }
+
+            optimizePortfolioWeights() {
+                // Simplified optimization algorithm
+                const targetReturn = 8; // Target 8% return
+                const maxRisk = 15; // Max 15% risk
+
+                // Adjust weights to optimize Sharpe ratio
+                let bestSharpe = 0;
+                let bestWeights = [];
+
+                for (let i = 0; i < 100; i++) {
+                    const weights = this.generateRandomWeights();
+                    const metrics = this.calculatePortfolioMetricsWithWeights(weights);
+                    
+                    if (metrics.sharpe > bestSharpe && metrics.expectedReturn <= targetReturn && metrics.volatility <= maxRisk) {
+                        bestSharpe = metrics.sharpe;
+                        bestWeights = weights;
+                    }
+                }
+
+                // Apply best weights
+                if (bestWeights.length > 0) {
+                    this.portfolioStocks.forEach((stock, index) => {
+                        stock.targetWeight = bestWeights[index] * 100;
+                    });
+                    this.renderPortfolio();
+                    this.updatePortfolioMetrics();
+                }
+            }
+
+            generateRandomWeights() {
+                const weights = [];
+                let remaining = 1.0;
+                
+                for (let i = 0; i < this.portfolioStocks.length - 1; i++) {
+                    const weight = Math.random() * remaining * 0.6;
+                    weights.push(weight);
+                    remaining -= weight;
+                }
+                weights.push(remaining);
+                
+                return weights;
+            }
+
+            calculatePortfolioMetricsWithWeights(weights) {
+                const dividendYield = this.portfolioStocks.reduce((sum, stock, index) => 
+                    sum + (stock.dividendYield * weights[index]), 0);
+                const portfolioBeta = this.portfolioStocks.reduce((sum, stock, index) => 
+                    sum + (stock.beta * weights[index]), 0);
+                
+                const expectedReturn = dividendYield + 2.5;
+                const volatility = Math.sqrt(portfolioBeta) * 15;
+                const sharpeRatio = (expectedReturn - 2.0) / (volatility / 100);
+
+                return { expectedReturn, volatility, sharpeRatio, dividendYield };
+            }
+
+            showOptimizationResults() {
+                const results = this.calculatePortfolioMetricsWithWeights(
+                    this.portfolioStocks.map(stock => stock.weight / 100)
+                );
+
+                document.getElementById('opt-return').textContent = `${results.expectedReturn.toFixed(2)}%`;
+                document.getElementById('opt-yield').textContent = `${results.dividendYield.toFixed(2)}%`;
+                document.getElementById('opt-sharpe').textContent = results.sharpeRatio.toFixed(2);
+                
+                document.getElementById('optimization-results').style.display = 'block';
+                
+                anime({
+                    targets: '#optimization-results',
+                    opacity: [0, 1],
+                    translateY: [50, 0],
+                    duration: 800,
+                    easing: 'easeOutQuart'
+                });
+            }
+
+            hideOptimizationResults() {
+                document.getElementById('optimization-results').style.display = 'none';
+            }
+
+            applyOptimization() {
+                this.renderPortfolio();
+                this.updatePortfolioMetrics();
+                this.hideOptimizationResults();
+                this.showNotification('Optimization applied to portfolio', 'success');
+            }
+
+            savePortfolio() {
+                const portfolioData = {
+                    stocks: this.portfolioStocks,
+                    timestamp: new Date().toISOString()
+                };
+                localStorage.setItem('dividendPortfolio', JSON.stringify(portfolioData));
+                this.showNotification('Portfolio saved successfully', 'success');
+            }
+
+            loadPortfolio() {
+                const savedData = localStorage.getItem('dividendPortfolio');
+                if (savedData) {
+                    const portfolioData = JSON.parse(savedData);
+                    this.portfolioStocks = portfolioData.stocks || [];
+                    this.renderPortfolio();
+                    this.updatePortfolioMetrics();
+                    this.updateCharts();
+                    this.showNotification('Portfolio loaded successfully', 'success');
+                } else {
+                    this.showNotification('No saved portfolio found', 'warning');
+                }
+            }
+
+            exportAnalysis() {
+                const analysis = {
+                    portfolio: this.portfolioStocks,
+                    metrics: {
+                        expectedReturn: document.getElementById('expected-return').textContent,
+                        dividendYield: document.getElementById('portfolio-dividend-yield').textContent,
+                        sharpeRatio: document.getElementById('portfolio-sharpe').textContent,
+                        beta: document.getElementById('portfolio-beta').textContent,
+                        volatility: document.getElementById('portfolio-volatility').textContent
+                    },
+                    timestamp: new Date().toISOString()
+                };
+
+                const dataStr = JSON.stringify(analysis, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'portfolio-analysis.json';
+                link.click();
+                
+                URL.revokeObjectURL(url);
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
